@@ -1,0 +1,25 @@
+<?php
+require __DIR__ . '/../config.php';
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_response(['error' => 'POST method required.'], 405);
+$data = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+$name = trim($data['item_name'] ?? '');
+$type = $data['item_type'] ?? 'Lost';
+$category = trim($data['category'] ?? '');
+$description = trim($data['description'] ?? '');
+$location = trim($data['location'] ?? '');
+$contact = trim($data['contact_name'] ?? '');
+$email = trim($data['contact_email'] ?? '');
+$date = trim($data['item_date'] ?? '');
+$errors = [];
+if ($name === '' || mb_strlen($name) > 120) $errors[] = 'Enter an item name (up to 120 characters).';
+if (!in_array($type, ['Lost', 'Found'], true)) $errors[] = 'Choose Lost or Found.';
+if ($category === '') $errors[] = 'Choose a category.';
+if ($description === '') $errors[] = 'Enter a description.';
+if ($location === '') $errors[] = 'Enter the location.';
+if ($contact === '') $errors[] = 'Enter your name.';
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Enter a valid email address.';
+if ($date !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) $errors[] = 'Choose a valid date.';
+if ($errors) json_response(['errors' => $errors], 422);
+$stmt = $pdo->prepare('INSERT INTO items (item_name,item_type,category,description,location,contact_name,contact_email,item_date) VALUES (?,?,?,?,?,?,?,?)');
+$stmt->execute([$name,$type,$category,$description,$location,$contact,$email,$date ?: null]);
+json_response(['success' => true, 'id' => (int)$pdo->lastInsertId() ], 201);
